@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>marquee — your AMC tracker</title>
+<script>
+(function(){try{var t=localStorage.getItem('theme')||'cinema';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','cinema');}})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+[data-theme="cinema"] {
+    --bg: #100c08;
+    --bg-elevated: #181410;
+    --border: #251e16;
+    --border-bright: #382d22;
+    --text: #f0e3c8;
+    --text-muted: #8a7960;
+    --text-faded: #2e251c;
+    --accent: #d4a358;
+    --accent-cool: #b8a888;
+}
+
+[data-theme="noir"] {
+    --bg: #0a0a0a;
+    --bg-elevated: #131313;
+    --border: #1c1c1c;
+    --border-bright: #2c2c2c;
+    --text: #f5f5f5;
+    --text-muted: #6a6a6a;
+    --text-faded: #2a2a2a;
+    --accent: #fafafa;
+    --accent-cool: #888888;
+}
+
+[data-theme="forest"] {
+    --bg: #0d1714;
+    --bg-elevated: #15211c;
+    --border: #1f2c27;
+    --border-bright: #2c3d35;
+    --text: #e8e0c8;
+    --text-muted: #788c80;
+    --text-faded: #2a3530;
+    --accent: #c9a66b;
+    --accent-cool: #92b09c;
+}
+
+[data-theme="lagoon"] {
+    --bg: #0c1620;
+    --bg-elevated: #131e2c;
+    --border: #1d2a3a;
+    --border-bright: #2a3a4f;
+    --text: #e6ecda;
+    --text-muted: #708092;
+    --text-faded: #2a3548;
+    --accent: #e8957f;
+    --accent-cool: #8ab8c8;
+}
+
+[data-theme="crimson"] {
+    --bg: #0c0808;
+    --bg-elevated: #150e0e;
+    --border: #1f1616;
+    --border-bright: #2e2222;
+    --text: #f0e8e0;
+    --text-muted: #8a7a78;
+    --text-faded: #2c2424;
+    --accent: #d63a3a;
+    --accent-cool: #c98080;
+}
+
+html, body { background: var(--bg); color: var(--text); }
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.container { max-width: 1100px; margin: 0 auto; padding: 28px 32px 96px; }
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* === TOP STRIP === */
+.strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+.strip-section { display: flex; gap: 18px; align-items: center; }
+.strip-sep { color: var(--text-faded); }
+
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-faded); display: inline-block; }
+.dot.live { background: var(--accent); animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+/* === HERO === */
+.hero { padding: 72px 0 56px; border-bottom: 1px solid var(--border); }
+
+.hero-label {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.hero-label::before { content: ''; width: 36px; height: 1px; background: var(--accent); }
+
+.hero-title {
+    font-family: 'Bricolage Grotesque', 'Inter', sans-serif;
+    font-weight: 800;
+    font-variation-settings: "opsz" 96;
+    font-size: clamp(64px, 13vw, 168px);
+    line-height: 0.88;
+    letter-spacing: -0.045em;
+    color: var(--text);
+    word-break: break-word;
+}
+
+.hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    margin-top: 36px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.hero-meta strong { color: var(--text); font-weight: 500; }
+
+/* === SETUP SCREEN === */
+.setup-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    max-width: 560px;
+    margin-top: 20px;
+}
+
+.setup-step {
+    margin-top: 56px;
+}
+
+.step-label {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.step-label::before { content: ''; width: 28px; height: 1px; background: var(--accent); }
+
+.step-question {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--text);
+    margin-bottom: 24px;
+}
+
+.input-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.text-input {
+    flex: 1;
+    min-width: 200px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    font: inherit;
+    font-size: 18px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    letter-spacing: 0.05em;
+    padding: 14px 18px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+.text-input:focus { border-color: var(--accent); }
+.text-input::placeholder { color: var(--text-faded); }
+
+.theatre-options {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.theatre-option {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 24px;
+    align-items: center;
+    padding: 22px 16px 22px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.15s ease;
+    contain: layout style paint;
+}
+.theatre-option:hover {
+    transform: translateX(8px);
+    background: rgba(255,255,255,0.015);
+}
+.theatre-option:hover .opt-arrow { color: var(--accent); }
+.theatre-option:hover .opt-num { color: var(--accent); }
+
+.opt-num {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 32px;
+    color: var(--text-faded);
+    line-height: 1;
+    text-align: center;
+    transition: color 0.2s ease;
+}
+
+.opt-info { min-width: 0; }
+.opt-name {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+.opt-addr {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.opt-arrow {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 32px;
+    color: var(--text-faded);
+    transition: color 0.2s ease;
+}
+
+/* === DAY === */
+.day { margin-top: 56px; }
+
+.day-header {
+    display: flex;
+    align-items: baseline;
+    gap: 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.day-name {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 56px;
+    line-height: 1;
+    color: var(--text);
+    letter-spacing: -0.025em;
+}
+
+.day-month {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.day-spacer { flex: 1; }
+.day-count {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* === MOVIE === */
+.movie {
+    display: grid;
+    grid-template-columns: 132px 1fr 144px;
+    gap: 26px;
+    align-items: center;
+    padding: 22px 0;
+    border-bottom: 1px solid var(--border);
+    transition: transform 0.2s ease, background-color 0.15s ease;
+    contain: layout style paint;
+}
+.movie:hover {
+    transform: translateX(8px);
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.movie.watched .movie-title { color: var(--text-muted); }
+.movie.watched .time-pill { color: var(--text-faded); }
+.movie.watched .first-show-time { color: var(--accent-cool); }
+
+.poster-wrap {
+    position: relative;
+    width: 132px;
+    height: 198px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--bg-elevated);
+}
+
+.poster {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.movie:hover .poster { transform: scale(1.04); }
+
+.poster-fallback {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, var(--bg-elevated), var(--bg));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 36px;
+    color: var(--text-faded);
+}
+
+.watched-stamp {
+    position: absolute;
+    top: 24px; left: 50%;
+    transform: translateX(-50%) rotate(-7deg);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    color: var(--accent-cool);
+    border: 1.5px solid var(--accent-cool);
+    padding: 4px 9px 3px;
+    background: var(--bg);
+    text-transform: uppercase;
+    z-index: 2;
+}
+
+.movie-info { min-width: 0; }
+
+.movie-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.08;
+    letter-spacing: -0.022em;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.movie-times { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.movie-run {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-faded);
+    margin-bottom: 10px;
+}
+
+.movie-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.date-row {
+    display: grid;
+    grid-template-columns: 86px 1fr;
+    gap: 14px;
+    align-items: center;
+}
+
+.date-row-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+}
+
+.date-row-weekday {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    color: var(--text-faded);
+}
+
+.date-row-date {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.date-row-times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.movie.watched .date-row-weekday,
+.movie.watched .date-row-date { color: var(--text-faded); }
+
+.time-pill {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    padding: 4px 9px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+}
+
+.first-show {
+    text-align: right;
+    border-left: 1px solid var(--border);
+    padding-left: 26px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.first-show-time {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 44px;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    color: var(--accent);
+}
+
+.first-show-meta {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 10px;
+}
+
+/* === FOOTER === */
+.footer {
+    margin-top: 72px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.footer-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+.themes { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.themes-label { color: var(--text-faded); }
+
+.theme-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font: inherit;
+    padding: 4px 0;
+    text-transform: lowercase;
+    letter-spacing: 0.16em;
+    transition: color 0.15s ease;
+}
+.theme-btn:hover { color: var(--text); }
+.theme-btn.active { color: var(--accent); }
+
+.footer-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+
+.action-btn {
+    font: inherit;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-bright);
+    padding: 8px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.action-btn.subtle { border: none; color: var(--text-muted); padding: 8px 4px; }
+.action-btn.subtle:hover { color: var(--accent); }
+.action-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* === ERROR === */
+.error {
+    margin-top: 24px;
+    padding: 14px 18px;
+    border: 1px solid var(--border-bright);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+}
+
+/* === LOADING === */
+.loading-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 40px 20px;
+}
+
+.loader-projector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: min(360px, 70vw);
+    margin-bottom: 56px;
+}
+
+.reel {
+    width: 88px;
+    height: 88px;
+    flex-shrink: 0;
+    color: var(--text);
+    animation: spin 4s linear infinite;
+}
+.reel.right { animation-direction: reverse; animation-duration: 4.4s; }
+.reel .hub { fill: var(--accent); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.filmstrip {
+    flex: 1;
+    height: 36px;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    margin: 0 -4px;
+    overflow: hidden;
+}
+
+.filmstrip-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.filmstrip-holes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        radial-gradient(circle at 6px 6px, var(--bg) 2.2px, transparent 2.4px),
+        radial-gradient(circle at 6px 30px, var(--bg) 2.2px, transparent 2.4px);
+    background-size: 12px 36px;
+    background-repeat: repeat-x;
+    z-index: 1;
+}
+
+.loading-quote {
+    text-align: center;
+    max-width: 560px;
+    transition: opacity 0.5s ease;
+    margin-bottom: 36px;
+    min-height: 80px;
+}
+
+.quote-text {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--text);
+    letter-spacing: -0.005em;
+    margin-bottom: 14px;
+}
+
+.quote-cite {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.loader-progress {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: center;
+}
+.loader-progress strong { color: var(--accent); font-weight: 500; }
+
+.loader-meta {
+    margin-top: 24px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-faded);
+    text-align: center;
+}
+
+/* === MOBILE === */
+@media (max-width: 720px) {
+    .container { padding: 18px 16px 80px; }
+    .strip { font-size: 9.5px; padding: 8px 0; flex-wrap: wrap; }
+    .strip-section.hide-mobile { display: none; }
+    .hero { padding: 44px 0 32px; }
+    .hero-meta { gap: 18px; font-size: 10px; }
+    .step-question { font-size: 28px; }
+    .day { margin-top: 40px; }
+    .day-name { font-size: 36px; }
+    .day-month { font-size: 11px; }
+    .day-count { display: none; }
+    .movie {
+        grid-template-columns: 84px 1fr;
+        gap: 14px;
+        padding: 16px 0;
+    }
+    .movie:hover { transform: translateX(4px); }
+    .poster-wrap { width: 84px; height: 126px; }
+    .movie-title { font-size: 18px; margin-bottom: 8px; }
+    .first-show {
+        grid-column: 2 / 3;
+        text-align: left;
+        border-left: none;
+        padding-left: 0;
+        flex-direction: row;
+        align-items: baseline;
+        gap: 12px;
+        margin-top: 6px;
+    }
+    .first-show-time { font-size: 28px; }
+    .first-show-meta { margin-top: 0; font-size: 9.5px; }
+    .watched-stamp { top: 14px; font-size: 8px; padding: 3px 6px 2px; }
+    .footer-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .reel { width: 64px; height: 64px; }
+    .filmstrip { height: 28px; }
+    .filmstrip-holes { background-size: 10px 28px; background-image: radial-gradient(circle at 5px 5px, var(--bg) 1.8px, transparent 2px), radial-gradient(circle at 5px 23px, var(--bg) 1.8px, transparent 2px); }
+    .quote-text { font-size: 17px; }
+    .theatre-option { grid-template-columns: 40px 1fr auto; gap: 14px; padding: 16px 8px 16px 0; }
+    .theatre-option:hover { transform: translateX(4px); }
+    .opt-num, .opt-arrow { font-size: 24px; }
+    .opt-name { font-size: 17px; }
+    .opt-addr { font-size: 10px; }
+    .date-row { grid-template-columns: 70px 1fr; gap: 10px; }
+    .date-row-label { padding-left: 8px; }
+    .movie-run { font-size: 9px; margin-bottom: 8px; }
+}
+/* === MODAL === */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-bright);
+    padding: 32px 32px 26px;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+.modal-label {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-faded);
+    margin-bottom: 14px;
+}
+.modal-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 32px;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 14px;
+    letter-spacing: -0.015em;
+}
+.modal-body {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+.modal-input-row { margin-bottom: 16px; }
+.modal-error {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 14px;
+}
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+</style>
+</head>
+<body>
+
+<!-- =================== SETUP SCREEN =================== -->
+<div id="screen-setup" class="screen">
+<div class="container">
+    <div class="strip">
+        <div class="strip-section">
+            <span>marquee</span>
+            <span class="strip-sep">/</span>
+            <span class="hide-mobile">your AMC tracker</span>
+        </div>
+        <div class="strip-section">
+            <span class="dot"></span>
+            <span>welcome</span>
+        </div>
+    </div>
+
+    <div class="hero">
+        <div class="hero-label">Setup</div>
+        <div class="hero-title">marquee</div>
+        <div class="setup-sub">Pick an AMC theatre near you and (optionally) link your Letterboxd to mark movies you've already seen. Showtimes for the next 30 days, posters, all your closest options — no more browsing the AMC site.</div>
+    </div>
+
+    <!-- Step 1: Zip code -->
+    <div id="zip-step" class="setup-step">
+        <div class="step-label">Step 01 — Location</div>
+        <div class="step-question">What's your zip code?</div>
+        <div class="input-row">
+            <input id="zip-input" class="text-input" type="text" inputmode="numeric" placeholder="00000" maxlength="5">
+            <button id="zip-search-btn" class="action-btn">Find theatres</button>
+        </div>
+        <div id="zip-error" class="error" style="display:none"></div>
+        <div id="theatre-options" class="theatre-options"></div>
+    </div>
+
+    <!-- Step 2: Letterboxd -->
+    <div id="lb-step" class="setup-step" style="display:none">
+        <div class="step-label">Step 02 — Letterboxd <span style="color:var(--text-faded);margin-left:8px">(optional)</span></div>
+        <div class="step-question">What's your Letterboxd username?</div>
+        <div class="setup-sub" style="margin-top:0;margin-bottom:12px">Link your Letterboxd RSS to flag movies you've already watched. Skip if you'd rather not.</div>
+        <div class="input-row">
+            <input id="lb-input" class="text-input" type="text" placeholder="username" autocomplete="off" autocapitalize="off">
+            <button id="lb-save-btn" class="action-btn">Continue</button>
+            <button id="lb-skip-btn" class="action-btn subtle">Skip</button>
+        </div>
+        <div id="lb-error" class="error" style="display:none"></div>
+    </div>
+</div>
+</div>
+
+<!-- =================== LOADING SCREEN =================== -->
+<div id="screen-loading" class="screen">
+<div class="container">
+    <div class="strip">
+        <div class="strip-section">
+            <span id="loading-theatre-name">marquee</span>
+            <span class="strip-sep">/</span>
+            <span class="hide-mobile" id="loading-theatre-addr">loading…</span>
+        </div>
+        <div class="strip-section">
+            <span class="dot live"></span>
+            <span id="strip-progress">00 / 30</span>
+        </div>
+    </div>
+
+    <div class="loading-screen">
+        <div class="loader-projector">
+            <svg class="reel left" viewBox="0 0 88 88" fill="none">
+                <circle cx="44" cy="44" r="40" stroke="currentColor" stroke-width="1.5"/>
+                <circle class="hub" cx="44" cy="44" r="6"/>
+                <circle cx="44" cy="14" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="44" cy="74" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="14" cy="44" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="74" cy="44" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="22" cy="22" r="3" stroke="currentColor" stroke-width="1.2"/>
+                <circle cx="66" cy="22" r="3" stroke="currentColor" stroke-width="1.2"/>
+                <circle cx="22" cy="66" r="3" stroke="currentColor" stroke-width="1.2"/>
+                <circle cx="66" cy="66" r="3" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+            <div class="filmstrip">
+                <div class="filmstrip-fill" id="filmstrip-fill"></div>
+                <div class="filmstrip-holes"></div>
+            </div>
+            <svg class="reel right" viewBox="0 0 88 88" fill="none">
+                <circle cx="44" cy="44" r="40" stroke="currentColor" stroke-width="1.5"/>
+                <circle class="hub" cx="44" cy="44" r="6"/>
+                <circle cx="44" cy="14" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="44" cy="74" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="14" cy="44" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="74" cy="44" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="22" cy="22" r="3" stroke="currentColor" stroke-width="1.2"/>
+                <circle cx="66" cy="22" r="3" stroke="currentColor" stroke-width="1.2"/>
+                <circle cx="22" cy="66" r="3" stroke="currentColor" stroke-width="1.2"/>
+                <circle cx="66" cy="66" r="3" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+        </div>
+
+        <div class="loading-quote" id="quote">
+            <div class="quote-text">"Here's looking at you, kid."</div>
+            <div class="quote-cite">Casablanca · 1942</div>
+        </div>
+
+        <div class="loader-progress" id="loader-stage">
+            <strong id="loader-num">00</strong> of <strong>30</strong> · scanning showtimes
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- =================== THEATRE SCREEN =================== -->
+<div id="screen-theatre" class="screen">
+<div class="container">
+    <div class="strip">
+        <div class="strip-section">
+            <span id="t-name">—</span>
+            <span class="strip-sep">/</span>
+            <span class="hide-mobile" id="t-addr">—</span>
+        </div>
+        <div class="strip-section">
+            <span class="dot"></span>
+            <span id="t-updated">just now</span>
+        </div>
+    </div>
+
+    <div class="hero">
+        <div class="hero-label">Now Playing</div>
+        <div class="hero-title" id="t-title">—</div>
+        <div class="hero-meta" id="t-hero-meta"></div>
+    </div>
+
+    <div id="t-error" class="error" style="display:none"></div>
+    <div id="t-days"></div>
+
+    <div class="footer">
+        <div class="footer-row">
+            <div class="themes">
+                <span class="themes-label">Theme</span>
+                <button class="theme-btn" data-theme-btn="cinema">cinema</button>
+                <button class="theme-btn" data-theme-btn="noir">noir</button>
+                <button class="theme-btn" data-theme-btn="forest">forest</button>
+                <button class="theme-btn" data-theme-btn="lagoon">lagoon</button>
+                <button class="theme-btn" data-theme-btn="crimson">crimson</button>
+            </div>
+            <div class="footer-actions">
+                <a class="action-btn subtle" href="#" id="change-theatre-btn">Change theatre</a>
+                <a class="action-btn subtle" href="#" id="change-lb-btn">Letterboxd</a>
+                <button class="action-btn" id="refresh-btn">Refresh</button>
+            </div>
+        </div>
+        <div class="footer-row">
+            <div>AMC API · Letterboxd RSS</div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- =================== MODAL =================== -->
+<div id="modal-backdrop" class="modal-backdrop" style="display:none">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-label" id="modal-label">Marquee</div>
+        <div class="modal-title" id="modal-title">Are you sure?</div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-input-row" id="modal-input-row" style="display:none">
+            <input id="modal-input" class="text-input" type="text" autocomplete="off" autocapitalize="off">
+        </div>
+        <div class="modal-error" id="modal-error" style="display:none"></div>
+        <div class="modal-actions">
+            <button id="modal-cancel-btn" class="action-btn subtle">Cancel</button>
+            <button id="modal-ok-btn" class="action-btn">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let QUOTES = [
+    ['"Here\'s looking at you, kid."', "Casablanca · 1942"]
+];
+// Load the rest from the API on boot.
+fetch('/api/quotes').then(r => r.json()).then(d => {
+    if (d && Array.isArray(d.quotes) && d.quotes.length) QUOTES = d.quotes;
+}).catch(() => {});
+
+// === STATE ===
+const STATE = {
+    theatre: null,           // {id, name, address}
+    letterboxd: null,        // username
+    movies: [],
+    watchedSet: new Set(),
+    quoteTimer: null,
+    preloaded: {},
+    preloadedImgs: [],
+    cacheChecks: 0,
+};
+
+// === UTILS ===
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function pad2(n) { n = parseInt(n) || 0; return n < 10 ? '0' + n : '' + n; }
+function escapeHtml(s) {
+    // Note: & must be replaced first conceptually, but the regex/lookup-table
+    // approach replaces every matched character against the original string in
+    // a single left-to-right pass, so order in the lookup doesn't matter.
+    return String(s == null ? '' : s).replace(/[<>&"']/g, c =>
+        ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'})[c]);
+}
+function safePosterUrl(url) {
+    // Only allow https poster URLs. Refuse javascript:, data:, etc.
+    if (typeof url !== 'string') return '';
+    return /^https?:\/\//i.test(url) ? url : '';
+}
+function lsGet(k)        { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v)     { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsRemove(k)     { try { localStorage.removeItem(k); } catch (e) {} }
+function normalizeTitle(t) {
+    if (!t) return '';
+    return String(t).toLowerCase()
+        .replace(/[\u2014\u2013]/g, '-')
+        .replace(/[\u2019]/g, "'")
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = $('screen-' + name);
+    if (el) el.classList.add('active');
+    window.scrollTo(0, 0);
+}
+function displayTheatreName(name) {
+    if (!name) return 'theatre';
+    return name.replace(/^AMC\s+/i, '').replace(/\s+\d+$/, '').toLowerCase() || 'theatre';
+}
+
+// === BOOT ===
+function init() {
+    setupThemes();
+    const tid = lsGet('theatre_id');
+    const tname = lsGet('theatre_name');
+    const taddr = lsGet('theatre_address');
+    const lb = lsGet('letterboxd_username');
+
+    if (tid && tname) {
+        STATE.theatre = { id: parseInt(tid), name: tname, address: taddr || '' };
+        STATE.letterboxd = lb || null;
+        loadTheatreView();
+    } else {
+        bindSetup();
+        showScreen('setup');
+        $('zip-input').focus();
+    }
+}
+
+// === MODAL ===
+function showModal(opts) {
+    // opts: { label, title, body, okText, cancelText, input, inputPlaceholder,
+    //         inputValue, validate(value)->errorOrNull }
+    return new Promise(resolve => {
+        const backdrop = $('modal-backdrop');
+        const labelEl = $('modal-label');
+        const titleEl = $('modal-title');
+        const bodyEl = $('modal-body');
+        const inputRow = $('modal-input-row');
+        const inputEl = $('modal-input');
+        const errEl = $('modal-error');
+        const okBtn = $('modal-ok-btn');
+        const cancelBtn = $('modal-cancel-btn');
+
+        labelEl.textContent = opts.label || 'Marquee';
+        titleEl.textContent = opts.title || '';
+        bodyEl.textContent = opts.body || '';
+        bodyEl.style.display = opts.body ? 'block' : 'none';
+        okBtn.textContent = opts.okText || 'Confirm';
+        cancelBtn.textContent = opts.cancelText || 'Cancel';
+        errEl.style.display = 'none';
+        errEl.textContent = '';
+
+        if (opts.input) {
+            inputRow.style.display = 'block';
+            inputEl.value = opts.inputValue || '';
+            inputEl.placeholder = opts.inputPlaceholder || '';
+            setTimeout(() => inputEl.focus(), 50);
+        } else {
+            inputRow.style.display = 'none';
+        }
+
+        backdrop.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+
+        function cleanup() {
+            backdrop.style.display = 'none';
+            document.body.style.overflow = '';
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            backdrop.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            inputEl.removeEventListener('keydown', onInputKey);
+        }
+        function onOk() {
+            const value = opts.input ? inputEl.value.trim() : true;
+            if (opts.validate) {
+                const err = opts.validate(value);
+                if (err) {
+                    errEl.textContent = err;
+                    errEl.style.display = 'block';
+                    return;
+                }
+            }
+            cleanup();
+            resolve(value);
+        }
+        function onCancel() { cleanup(); resolve(null); }
+        function onBackdrop(e) { if (e.target === backdrop) onCancel(); }
+        function onKey(e) {
+            if (e.key === 'Escape') onCancel();
+            else if (e.key === 'Enter' && !opts.input) onOk();
+        }
+        function onInputKey(e) {
+            if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+        }
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        backdrop.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+        inputEl.addEventListener('keydown', onInputKey);
+    });
+}
+
+// === SETUP ===
+function bindSetup() {
+    const zipInput = $('zip-input');
+    const zipBtn = $('zip-search-btn');
+
+    zipInput.addEventListener('input', e => {
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 5);
+    });
+    zipInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); searchZip(); }
+    });
+    zipBtn.addEventListener('click', searchZip);
+
+    $('lb-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveLetterboxd(); }
+    });
+    $('lb-save-btn').addEventListener('click', saveLetterboxd);
+    $('lb-skip-btn').addEventListener('click', () => {
+        STATE.letterboxd = null;
+        localStorage.removeItem('letterboxd_username');
+        loadTheatreView();
+    });
+}
+
+async function searchZip() {
+    const zip = $('zip-input').value.trim();
+    const errorEl = $('zip-error');
+    const optsEl = $('theatre-options');
+    const btn = $('zip-search-btn');
+
+    errorEl.style.display = 'none';
+    optsEl.innerHTML = '';
+
+    if (!/^\d{5}$/.test(zip)) {
+        errorEl.textContent = 'Please enter a valid 5-digit zip code.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Searching…';
+
+    try {
+        const r = await fetch(`/api/theatres?zip=${zip}`);
+        const data = await r.json();
+        if (!r.ok || data.error) {
+            errorEl.textContent = data.error || 'Search failed. Try again.';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (!data.theatres || data.theatres.length === 0) {
+            errorEl.textContent = 'No AMC theatres found near that zip.';
+            errorEl.style.display = 'block';
+            return;
+        }
+        renderTheatreOptions(data.theatres);
+    } catch (e) {
+        errorEl.textContent = 'Connection error. Try again.';
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Find theatres';
+    }
+}
+
+function renderTheatreOptions(theatres) {
+    const container = $('theatre-options');
+    container.innerHTML = '';
+    theatres.forEach((t, idx) => {
+        const card = document.createElement('div');
+        card.className = 'theatre-option';
+        const distLabel = (typeof t.distance === 'number')
+            ? `${t.distance} mi`
+            : '';
+        card.innerHTML = `
+            <div class="opt-num">${pad2(idx + 1)}</div>
+            <div class="opt-info">
+                <div class="opt-name">${escapeHtml(t.name)}</div>
+                <div class="opt-addr">${escapeHtml(t.address)}${distLabel ? ` · ${escapeHtml(distLabel)}` : ''}</div>
+            </div>
+            <div class="opt-arrow">→</div>
+        `;
+        card.addEventListener('click', () => selectTheatre(t));
+        container.appendChild(card);
+    });
+}
+
+function selectTheatre(t) {
+    STATE.theatre = { id: t.id, name: t.name, address: t.address };
+    lsSet('theatre_id', String(t.id));
+    lsSet('theatre_name', t.name);
+    lsSet('theatre_address', t.address || '');
+
+    $('zip-step').style.display = 'none';
+    $('lb-step').style.display = 'block';
+    setTimeout(() => $('lb-input').focus(), 50);
+}
+
+function saveLetterboxd() {
+    const raw = $('lb-input').value.trim().replace(/^@/, '').replace(/\/$/, '');
+    const lbErr = $('lb-error');
+    if (lbErr) { lbErr.style.display = 'none'; lbErr.textContent = ''; }
+    if (raw && !/^[a-zA-Z0-9_-]{1,30}$/.test(raw)) {
+        if (lbErr) {
+            lbErr.textContent = 'Username can only contain letters, numbers, underscore, or hyphen.';
+            lbErr.style.display = 'block';
+        }
+        return;
+    }
+    if (raw) {
+        STATE.letterboxd = raw;
+        lsSet('letterboxd_username', raw);
+    } else {
+        STATE.letterboxd = null;
+        lsRemove('letterboxd_username');
+    }
+    loadTheatreView();
+}
+
+// === LOADING + THEATRE LOAD ===
+async function loadTheatreView() {
+    showScreen('loading');
+    $('loading-theatre-name').textContent = STATE.theatre.name || '—';
+    $('loading-theatre-addr').textContent = STATE.theatre.address || '';
+
+    // start rotating quotes
+    if (STATE.quoteTimer) clearInterval(STATE.quoteTimer);
+    rotateQuote();
+    STATE.quoteTimer = setInterval(rotateQuote, 5000);
+
+    // reset preload tracking
+    STATE.preloaded = {};
+    STATE.preloadedImgs = [];
+    STATE.cacheChecks = 0;
+
+    // kick off theatre + letterboxd in parallel
+    const [theatreData, watched] = await Promise.all([
+        loadTheatreData(),
+        STATE.letterboxd ? loadLetterboxd(STATE.letterboxd) : Promise.resolve(new Set()),
+    ]);
+
+    if (STATE.quoteTimer) { clearInterval(STATE.quoteTimer); STATE.quoteTimer = null; }
+    STATE.movies = theatreData || [];
+    STATE.watchedSet = watched || new Set();
+
+    renderTheatreScreen();
+    showScreen('theatre');
+}
+
+function rotateQuote() {
+    const el = $('quote');
+    if (!el) return;
+    el.style.opacity = 0;
+    setTimeout(() => {
+        const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+        el.querySelector('.quote-text').textContent = q[0];
+        el.querySelector('.quote-cite').textContent = q[1];
+        el.style.opacity = 1;
+    }, 400);
+}
+
+function preloadPoster(url) {
+    if (STATE.preloaded[url]) return;
+    STATE.preloaded[url] = true;
+    const img = new Image();
+    img.src = url;
+    STATE.preloadedImgs.push(img);
+}
+
+function countLoaded() {
+    let n = 0;
+    for (const img of STATE.preloadedImgs) if (img.complete) n++;
+    return n;
+}
+
+async function loadTheatreData() {
+    const tid = STATE.theatre.id;
+
+    let r = await fetch(`/api/theatre/${tid}`);
+    let data = await r.json();
+    if (data.info) {
+        if (data.info.name) {
+            STATE.theatre.name = data.info.name;
+            lsSet('theatre_name', data.info.name);
+        }
+        if (data.info.address) {
+            STATE.theatre.address = data.info.address;
+            lsSet('theatre_address', data.info.address);
+        }
+    }
+
+    if (data.ready) {
+        // Server already has fresh data (cached or just empty). Don't keep polling.
+        for (const m of (data.data || [])) {
+            const safe = safePosterUrl(m.poster);
+            if (safe) preloadPoster(safe);
+        }
+        await waitForImages(2500);
+        return data.data || [];
+    }
+
+    return await pollUntilReady(tid);
+}
+
+async function pollUntilReady(tid) {
+    let posterCursor = 0;
+    while (true) {
+        let s;
+        try {
+            const r = await fetch(`/api/status/${tid}?since=${posterCursor}`);
+            s = await r.json();
+        } catch (e) {
+            await sleep(1500);
+            continue;
+        }
+
+        const total = s.total || 30;
+        const fetched = s.fetched || 0;
+        const pct = total > 0 ? (fetched / total) * 100 : 0;
+        const fill = $('filmstrip-fill');
+        if (fill) fill.style.width = pct + '%';
+        $('loader-num').textContent = pad2(fetched);
+        $('strip-progress').textContent = pad2(fetched) + ' / ' + pad2(total);
+
+        if (Array.isArray(s.new_poster_urls)) {
+            for (const url of s.new_poster_urls) {
+                const safe = safePosterUrl(url);
+                if (safe) preloadPoster(safe);
+            }
+            posterCursor = s.poster_total || (posterCursor + s.new_poster_urls.length);
+        }
+
+        if (s.ready) {
+            await cachePhase();
+            const r2 = await fetch(`/api/theatre/${tid}`);
+            const d = await r2.json();
+            return d.data || [];
+        }
+
+        // Fetch failed entirely (no progress + error) — bail out.
+        if (!s.running && s.last_error && fetched === 0) {
+            return [];
+        }
+
+        await sleep(800);
+    }
+}
+
+async function cachePhase() {
+    const stage = $('loader-stage');
+    const start = Date.now();
+    const maxWait = 15000;
+    while (true) {
+        const loaded = countLoaded();
+        const total = STATE.preloadedImgs.length;
+        if (stage) {
+            stage.innerHTML = '<strong>' + pad2(loaded) + '</strong> of <strong>' + pad2(total) + '</strong> · caching posters';
+        }
+        if (loaded >= total) return;
+        if (Date.now() - start > maxWait) return;
+        await sleep(200);
+    }
+}
+
+async function waitForImages(maxMs) {
+    const start = Date.now();
+    while (Date.now() - start < maxMs) {
+        if (countLoaded() >= STATE.preloadedImgs.length) return;
+        await sleep(150);
+    }
+}
+
+async function loadLetterboxd(username) {
+    try {
+        const r = await fetch(`/api/letterboxd/${encodeURIComponent(username)}`);
+        const data = await r.json();
+        return new Set(data.titles || []);
+    } catch (e) {
+        return new Set();
+    }
+}
+
+// === RENDER THEATRE ===
+function renderTheatreScreen() {
+    $('t-name').textContent = STATE.theatre.name || '—';
+    $('t-addr').textContent = STATE.theatre.address || '';
+    $('t-title').textContent = displayTheatreName(STATE.theatre.name);
+
+    // group + index movies
+    const movies = STATE.movies.slice().sort((a, b) =>
+        a.sort_dt < b.sort_dt ? -1 : a.sort_dt > b.sort_dt ? 1 : 0
+    );
+
+    let watchedCount = 0;
+    movies.forEach(m => {
+        m._watched = STATE.watchedSet.has(normalizeTitle(m.title));
+        if (m._watched) watchedCount++;
+    });
+
+    // Group movies under day-headers using each movie's *first* date.
+    const groups = [];
+    let cur = null;
+    for (const m of movies) {
+        if (!cur || cur.date_iso !== m.first_date_iso) {
+            cur = {
+                date_iso: m.first_date_iso,
+                weekday: m.first_weekday,
+                month_day: m.first_month_day,
+                count: 0,
+                movies: []
+            };
+            groups.push(cur);
+        }
+        cur.movies.push(m);
+        cur.count++;
+    }
+
+    // Total showings across all movies and dates.
+    const totalShowings = movies.reduce((acc, m) => acc + (m.total_showings || 0), 0);
+
+    // hero meta
+    const meta = $('t-hero-meta');
+    meta.innerHTML = `
+        <span><strong>${movies.length}</strong> Movies</span>
+        <span><strong>${totalShowings}</strong> Showings</span>
+        ${watchedCount > 0 ? `<span><strong>${watchedCount}</strong> Recently watched</span>` : ''}
+        <span>30-Day Window · Theatre Local Time</span>
+    `;
+
+    // updated time
+    const now = new Date();
+    let h = now.getHours(); const m = now.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    $('t-updated').textContent = 'Updated ' + h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+
+    // days
+    if (groups.length === 0) {
+        $('t-days').innerHTML = '';
+        $('t-error').textContent = 'No upcoming showtimes found for this theatre.';
+        $('t-error').style.display = 'block';
+    } else {
+        $('t-error').style.display = 'none';
+        $('t-days').innerHTML = groups.map(renderDay).join('');
+    }
+
+    // bind footer actions
+    $('refresh-btn').onclick = handleRefresh;
+    $('change-theatre-btn').onclick = async (e) => {
+        e.preventDefault();
+        const ok = await showModal({
+            label: 'Change theatre',
+            title: 'Pick a different theatre?',
+            body: "You'll need to enter a zip code and choose a new one.",
+            okText: 'Change',
+        });
+        if (ok) {
+            lsRemove('theatre_id');
+            lsRemove('theatre_name');
+            lsRemove('theatre_address');
+            location.reload();
+        }
+    };
+    $('change-lb-btn').onclick = async (e) => {
+        e.preventDefault();
+        const cur = STATE.letterboxd || '';
+        const newName = await showModal({
+            label: 'Letterboxd',
+            title: 'Update Letterboxd username',
+            body: 'Leave blank to disconnect.',
+            okText: 'Save',
+            input: true,
+            inputValue: cur,
+            inputPlaceholder: 'username',
+            validate: v => {
+                if (!v) return null;  // blank = disconnect, allowed
+                v = v.replace(/^@/, '').replace(/\/$/, '');
+                if (!/^[a-zA-Z0-9_-]{1,30}$/.test(v)) {
+                    return 'Letters, numbers, underscore, or hyphen only.';
+                }
+                return null;
+            },
+        });
+        if (newName === null) return;
+        let u = newName.trim().replace(/^@/, '').replace(/\/$/, '');
+        if (u) {
+            STATE.letterboxd = u;
+            lsSet('letterboxd_username', u);
+        } else {
+            STATE.letterboxd = null;
+            lsRemove('letterboxd_username');
+        }
+        loadTheatreView();
+    };
+}
+
+function renderDay(g) {
+    return `
+    <div class="day">
+        <div class="day-header">
+            <div class="day-name">${escapeHtml(g.weekday)}</div>
+            <div class="day-month">${escapeHtml(g.month_day)}</div>
+            <div class="day-spacer"></div>
+            <div class="day-count">${g.count} new feature${g.count !== 1 ? 's' : ''}</div>
+        </div>
+        ${g.movies.map(renderMovie).join('')}
+    </div>`;
+}
+
+function renderMovie(m) {
+    const w = m._watched;
+    const safePoster = safePosterUrl(m.poster);
+    const posterHtml = safePoster
+        ? `<img class="poster" src="${escapeHtml(safePoster)}" decoding="async" loading="lazy" width="132" height="198" alt="">`
+        : `<div class="poster-fallback">∎</div>`;
+
+    const dates = Array.isArray(m.dates) ? m.dates : [];
+    const dateRowsHtml = dates.map(d => `
+        <div class="date-row">
+            <div class="date-row-label">
+                <span class="date-row-weekday">${escapeHtml(d.weekday_short || d.weekday)}</span>
+                <span class="date-row-date">${escapeHtml(d.month_day)}</span>
+            </div>
+            <div class="date-row-times">
+                ${d.times.map(t => `<span class="time-pill">${escapeHtml(t)}</span>`).join('')}
+            </div>
+        </div>
+    `).join('');
+    const runLabel = dates.length > 1 ? `${dates.length} days` : '';
+
+    return `
+    <div class="movie ${w ? 'watched' : ''}">
+        <div class="poster-wrap">
+            ${w ? '<div class="watched-stamp">Recently watched</div>' : ''}
+            ${posterHtml}
+        </div>
+        <div class="movie-info">
+            <div class="movie-title">${escapeHtml(m.title)}</div>
+            ${runLabel ? `<div class="movie-run">Showing ${escapeHtml(runLabel)}</div>` : ''}
+            <div class="movie-dates">
+                ${dateRowsHtml}
+            </div>
+        </div>
+        <div class="first-show">
+            <div class="first-show-time">${escapeHtml(m.first_time)}</div>
+            <div class="first-show-meta">${w ? 'Re-watch' : 'First show'}</div>
+        </div>
+    </div>`;
+}
+
+async function handleRefresh() {
+    const btn = $('refresh-btn');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing…';
+    try {
+        await fetch(`/api/refresh/${STATE.theatre.id}`, { method: 'POST' });
+        await sleep(800);
+        await loadTheatreView();
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Refresh';
+    }
+}
+
+// === THEMES ===
+function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('theme', t); } catch(e) {}
+    document.querySelectorAll('.theme-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.themeBtn === t);
+    });
+}
+function setupThemes() {
+    let cur;
+    try { cur = localStorage.getItem('theme') || 'cinema'; } catch (e) { cur = 'cinema'; }
+    document.querySelectorAll('.theme-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.themeBtn === cur);
+        b.addEventListener('click', () => setTheme(b.dataset.themeBtn));
+    });
+}
+
+// === GO ===
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
